@@ -139,6 +139,15 @@
           "-DTBB_DIR:PATH=${pkgs.tbb}/lib/cmake"
         ];
       };
+      vtkIOMPI = pkgs.vtk.overrideAttrs (self: super: rec {
+        buildInputs = super.buildInputs ++ (with pkgs; [
+          mpi
+        ]);
+        cmakeFlags = super.cmakeFlags ++ [
+          "-DVTK_USE_MPI=ON"
+        ];
+      });
+      # New PCL derivation
       pcl_new = pkgs.pcl.overrideAttrs (self: (super: rec {
         version = "1.12.1";
         src = pkgs.fetchFromGitHub {
@@ -147,7 +156,17 @@
           rev = "${super.pname}-${version}";
           sha256 = "ZVJFF3eoNfUafjHOjZe+ePUE0U+1+/BNYyS95xLm5hM=";
         };
-        buildInputs = super.buildInputs ++ [unfree.cudatoolkit];
+        buildInputs = super.buildInputs ++ [
+          unfree.cudatoolkit
+        ];
+        propagatedBuildInputs = with pkgs; [
+          boost
+          flann
+          libpng
+          libtiff
+          qhull
+          vtkIOMPI
+        ];
         cmakeFlags = super.cmakeFlags ++ ["-DWITH_CUDA=true"];
       }));
       # Alembic dev CMAKE is malformed, and looks for lib in dev output when it's in alembic.lib
@@ -217,6 +236,7 @@
           alembic_
           cctag
           popsift
+          # pcl_new
         ];
         hardeningDisable = [
           "all"
