@@ -162,6 +162,24 @@
           make install
         '';
       });
+      popsift = pkgs.stdenv.mkDerivation rec {
+        pname = "popsift";
+        version = "0.9.x";
+        src = pkgs.fetchFromGitHub {
+          owner = "alicevision";
+          repo = pname;
+          rev = "4c22d41579c17d7326938929c00c54cfa01a4592";
+          sha256 = "X9yLCMWKXRYdxzV1dsgswjgfaB+29judbIAlDYX+G3c=";
+        };
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        buildInputs = with pkgs; [
+          boost
+          unfree.cudatoolkit
+          libdevil
+        ];
+      };
       alicevision = pkgs.stdenv.mkDerivation rec {
         pname = "alicevision";
         version = "2022-10-15";
@@ -198,6 +216,7 @@
           assimp
           alembic_
           cctag
+          popsift
         ];
         hardeningDisable = [
           "all"
@@ -213,22 +232,10 @@
           "-DOpenCV_DIR:PATH=${pkgs.opencv}/lib/cmake/"
         ];
       };
-      qt3dFull = pkgs.qt5.qtModule {
-        pname = "qt3d";
-        qtInputs = with pkgs.qt5; [
-          qtbase
-          qtsvg
-          qtdeclarative
-          qttools
-          qtxmlpatterns
-          qtdoc
-        ];
-        outputs = [ "out" "dev" "bin" ];
-      };
       py = pkgs.python3;
       pyside2_3d = py.pkgs.pyside2.overrideAttrs (self: super: {
         buildInputs = super.buildInputs ++ (with pkgs.qt5; [
-          qt3dFull
+          qt3d
         ]);
       });
       mesh-py = py.withPackages (p: with p; [
@@ -252,6 +259,8 @@
         #export  QML2_IMPORT_PATH=/nix/store/365hahbdvz2r7nwk1fyi73ypd3yqlmfp-qtcharts-5.15.7-bin/lib/qt-5.15.7/qml:/nix/store/61y1jna9wj6n3663g0yamw4ngick2qmf-qt3d-5.15.7-bin/lib/qt-5.15.7/qml:$QML2_IMPORT_PATH
         propagatedBuildInputs = [
           mesh-py
+          pkgs.qt5.qt3d.bin
+          pkgs.qt5.qtcharts.bin
         ];
         buildInputs = with pkgs; [
           alicevision
