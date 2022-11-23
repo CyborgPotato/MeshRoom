@@ -6,6 +6,10 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
+      unfree = import nixpkgs {
+        inherit system;
+        config.allowUnfree = true;
+      };
       geogram = pkgs.stdenv.mkDerivation rec {
         pname = "geogram";
         version = "1.7.7";
@@ -44,22 +48,33 @@
         pname = "coin-utils";
         version = "2.11.6";
         src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
-          repo = pname;
-          rev = "releases/${version}";
-          sha256 = "avXp7eKSZ/Fe1QmSJiNDMnPQ70LlOHrBeUYb9lhka8c=";
+          owner = "alicevision";
+          repo = "CoinUtils";
+          rev = "b29532e31471d26dddee99095da3340e80e8c60c";
+          deepClone = true;
+          sha256 = "hJtWLNf8QWCBn7td8GtZpIejMrxiWy/L/TVFQKHAotg=";
         };
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        preConfigure = ''
+          echo PRECONFigure
+          echo $PWD
+          ls -la
+        '';
       };
       coin-osi = pkgs.stdenv.mkDerivation rec {
         pname = "coin-osi";
         version = "0.108.7";
         src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
+          owner = "alicevision";
           repo = "osi";
-          rev = "releases/${version}";
-          sha256 = "MTmt/MgsfEAXor2EZXJX05bQg5oOtMaN7oNxGv2PHJg=";
+          rev = "52bafbabf8d29bcfd57818f0dd50ee226e01db7f";
+          deepClone = true;
+          sha256 = "V29t8oPk0u7UFyMu76U4B8YhxLh85PdHj4QDOHXFlm0=";
         };
         nativeBuildInputs = with pkgs; [
+          cmake
           pkg-config
         ];
         buildInputs = with pkgs; [
@@ -70,12 +85,14 @@
         pname = "coin-clp";
         version = "1.17.7";
         src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
+          owner = "alicevision";
           repo = "clp";
-          rev = "releases/${version}";
-          sha256 = "CfAK/UbGaWvyk2ZxKEgziVruzZfz7WMJVi/YvdR/UNA=";
+          rev = "4da587acebc65343faafea8a134c9f251efab5b9";
+          deepClone = true;
+          sha256 = "txkbKGVJCH4kJR8sESPZihch8gyyzWUeYfuTANgZjHY=";
         };
         nativeBuildInputs = with pkgs; [
+          cmake
           pkg-config
           libtool
         ];
@@ -84,67 +101,20 @@
           coin-osi
         ];
       };
-      coin-cgl = pkgs.stdenv.mkDerivation rec {
-        pname = "coin-cgl";
-        version = "0.60.6";
+      pcl_new = pkgs.pcl.overrideAttrs (self: (super: rec {
+        version = "1.12.1";
         src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
-          repo = "cgl";
-          rev = "releases/${version}";
-          sha256 = "e+CNAqWszOk6XjKvlY/AoHowkraFvJISyKKUHVM+60s=";
+          owner = "PointCloudLibrary";
+          repo = "pcl";
+          rev = "${super.pname}-${version}";
+          sha256 = "ZVJFF3eoNfUafjHOjZe+ePUE0U+1+/BNYyS95xLm5hM=";
         };
-        nativeBuildInputs = with pkgs; [
-          pkg-config
-          libtool
-          gfortran
-        ];
-        buildInputs = with pkgs; [
-          coin-utils
-          coin-osi
-          coin-clp
-        ];
-      };
-      coin-cbc = pkgs.stdenv.mkDerivation rec {
-        pname = "coin-cbc";
-        version = "2.10.8";
-        src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
-          repo = "cbc";
-          rev = "releases/${version}";
-          sha256 = "3WjgjZataRb7QPQPo2LJGNehflw0/dXquCwnGPG0z4Y=";
-        };
-        nativeBuildInputs = with pkgs; [
-          pkg-config
-          libtool
-        ];
-        buildInputs = with pkgs; [
-          coin-utils
-          coin-osi
-          coin-cgl
-          coin-clp
-        ];
-      };
-      coin-vol = pkgs.stdenv.mkDerivation rec {
-        pname = "coin-vol";
-        version = "1.5.4";
-        src = pkgs.fetchFromGitHub {
-          owner = "coin-or";
-          repo = "vol";
-          rev = "releases/${version}";
-          sha256 = "pioQed4+6xN7o2XOSsI5VgvYIxTELG16snuyfi7mT+0=";
-        };
-        nativeBuildInputs = with pkgs; [
-          pkg-config
-          libtool
-        ];
-        buildInputs = with pkgs; [
-          coin-utils
-          coin-osi
-        ];
-      };
+        buildInputs = super.buildInputs ++ [unfree.cudatoolkit];
+        cmakeFlags = super.cmakeFlags ++ ["-DWITH_CUDA=true"];
+      }));
       alicevision = pkgs.stdenv.mkDerivation rec {
         pname = "alicevision";
-        version = "672fb43cea53bbf07b262f0e3ee618c62aec2f9b";
+        version = "2022-10-15";
         src = pkgs.fetchFromGitHub {
           owner = pname;
           repo = pname;
@@ -163,19 +133,19 @@
           llvmPackages.openmp
           ceres-solver
           openexr
+          opencv
           flann
           eigen
           openimageio2
           geogram
           wget
           python38
-          cudatoolkit
+          unfree.cudatoolkit
           doxygen
           coin-utils
           coin-clp
-          coin-cgl
-          coin-cbc
-          coin-vol
+          coin-osi
+          assimp
         ];
         hardeningDisable = [
           "all"
@@ -187,20 +157,39 @@
           "-DCMAKE_MODULE_PATH:PATH=${pkgs.eigen}/share/cmake/Modules/"
           "-DOpenImageIO_LIBRARY_DIR_HINTS:PATH=${pkgs.openimageio2}/lib/"
           "-DOpenImageIO_INCLUDE_DIR:PATH=${pkgs.openimageio2.dev}/include/"
-          "-DCOIN_INCLUDE_DIR:PATH=${coin-utils}/include;${coin-cbc}/include;${coin-cgl}/include;${coin-clp};${coin-osi}/include;${coin-vol}/include"
-          "-DCOIN_CBC_LIBRARY:PATH=${coin-cbc}/lib"
-          "-DCOIN_CBC_SOLVER_LIBRARY:PATH=${coin-cbc}/lib"
-          "-DCOIN_CGL_LIBRARY:PATH=${coin-cgl}/lib"
-          "-DCOIN_CLP_LIBRARY:PATH=${coin-cgl}/lib"
-          "-DCOIN_COIN_UTILS_LIBRARY:PATH=${coin-utils}/lib"
-          "-DCOIN_OSI_LIBRARY:PATH=${coin-osi}/lib"
-          "-DCOIN_OSI_CBC_LIBRARY:PATH=${coin-cbc}/lib"
-          "-DCOIN_OSI_CLP_LIBRARY:PATH=${coin-clp}/lib"
-          "-DCOIN_OSI_VOL_LIBRARY:PATH=${coin-vol}/lib"
-          "-DCOIN_VOL_LIBRARY:PATH=${coin-vol}/lib"
-          "-DAV_BUILD_COINUTILS=OFF"
+          "-DALICEVISION_USE_OPENCV=ON"
+          "-DOpenCV_DIR:PATH=${pkgs.opencv}/lib/cmake/"
         ];
       };
+      py = pkgs.python3;
+      qt3dFull = pkgs.qt5.qtModule {
+        pname = "qt3d";
+        qtInputs = with pkgs.qt5; [
+          qtbase
+          qtsvg
+          qtdeclarative
+          qttools
+          qtxmlpatterns
+          qtdoc
+        ];
+        outputs = [ "out" "dev" "bin" ];
+      };
+      pyside2 = py.pkgs.pyside2.overrideAttrs (self: super: {
+        buildInputs = super.buildInputs ++ (with pkgs.qt5; [
+          qt3dFull
+        ]);
+      });
+      mesh-py = py.withPackages (p: with p; [
+        pyside2
+        psutil
+        markdown
+        requests
+      ]);
+      pypip = py.withPackages (p: with p; [
+        pyqt5
+        matplotlib
+        setuptools
+      ]);
       meshroom = pkgs.stdenv.mkDerivation rec {
         pname = "meshroom";
         version = "8e9128be8d58f2caf55ad9bc9a41e86798dfd5eb";
@@ -210,6 +199,16 @@
           rev = version;
           sha256 = "IDoP0JnSI7zz/GSMQZCTQGw5Qg0qr7zMdDqwZJ7OE18=";
         };
+        propagatedNativeBuildInputs = [
+          pkgs.stdenv.cc.cc.lib
+        ];
+        #export  QML2_IMPORT_PATH=/nix/store/365hahbdvz2r7nwk1fyi73ypd3yqlmfp-qtcharts-5.15.7-bin/lib/qt-5.15.7/qml:/nix/store/61y1jna9wj6n3663g0yamw4ngick2qmf-qt3d-5.15.7-bin/lib/qt-5.15.7/qml:$QML2_IMPORT_PATH
+
+        propagatedBuildInputs = with pkgs.python2; [
+          pkgs.qt5.qt3d.bin
+          pkgs.qt5.qtcharts.bin
+          mesh-py
+        ];
         buildInputs = with pkgs; [
           alicevision
         ];
@@ -219,10 +218,26 @@
       devShells.alice = alicevision;
       devShells.mesh = meshroom;
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = [ pkgs.bashInteractive ];
-        buildInputs = [
-          alicevision
+        nativeBuildInputs = with pkgs; [
+          bashInteractive
+          qt5.qttools.dev
         ];
+        propagatedBuildInputs = [
+          # pypip
+          mesh-py
+        ];
+        QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}/platforms";
+        shellHook = ''
+          # source venv/bin/activate
+          # export PIP_CACHE_DIR="$PWD/venv/cache"
+          # Source locally
+          export PYTHONPATH=./:$PYTHONPATH
+          cd source
+          # fixes libstdc++ issues and libgl.so issues
+          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/:/run/opengl-driver/lib/:${pkgs.glib.out}/lib:${pkgs.libkrb5.out}/lib:${pkgs.libglvnd.out}/lib:${pkgs.xorg.libxcb}/lib
+          # fixes xcb issues :
+          # export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}
+        '';
       };
     });
 }
