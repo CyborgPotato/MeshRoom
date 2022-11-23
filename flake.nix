@@ -14,7 +14,7 @@
         pname = "geogram";
         version = "1.7.7";
         src = pkgs.fetchFromGitHub {
-          owner = pname;
+          owner = "alicevision";
           repo = "geogram";
           rev = "v${version}";
           deepClone = true;
@@ -101,6 +101,44 @@
           coin-osi
         ];
       };
+      # TBB (2020) needs update
+      # tbb = pkgs.tbb.overrideAttrs (self: super: rec {
+      tbb = pkgs.stdenv.mkDerivation rec {
+        pname = "tbb";
+        version = "2021.7.0";
+        src = pkgs.fetchFromGitHub {
+          owner = "oneapi-src";
+          repo = "oneTBB";
+          rev = "v${version}";
+          sha256 = "Lawhms0yq5p8BrQXMy6dPe29dpSlHdSntum+6bAkpyo=";
+        };
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+      };
+      cctag = pkgs.stdenv.mkDerivation rec {
+        pname = "CCTag";
+        version = "1.0.3";
+        src = pkgs.fetchFromGitHub {
+          owner = "alicevision";
+          repo = pname;
+          rev = "v${version}";
+          sha256 = "foB+e7BCuUucyhN8FsI6BIT3/fsNLTjY6QmjkMWZu6A=";
+        };
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        buildInputs = with pkgs; [
+          eigen
+          boost
+          opencv
+          tbb
+          unfree.cudatoolkit
+        ];
+        cmakeFlags = [
+          "-DTBB_DIR:PATH=${pkgs.tbb}/lib/cmake"
+        ];
+      };
       pcl_new = pkgs.pcl.overrideAttrs (self: (super: rec {
         version = "1.12.1";
         src = pkgs.fetchFromGitHub {
@@ -112,13 +150,25 @@
         buildInputs = super.buildInputs ++ [unfree.cudatoolkit];
         cmakeFlags = super.cmakeFlags ++ ["-DWITH_CUDA=true"];
       }));
+      # Alembic dev CMAKE is malformed, and looks for lib in dev output when it's in alembic.lib
+      alembic_ = pkgs.alembic.overrideAttrs (self: super: {
+        outputs = [ "out" ];
+        buildPhase = ''
+          cmake -DUSE_HDF5=ON -DCMAKE_INSTALL_PREFIX=$out/ -DUSE_TESTS=OFF .
+          make -j17
+          mkdir $out
+        '';
+        installPhase = ''
+          make install
+        '';
+      });
       alicevision = pkgs.stdenv.mkDerivation rec {
         pname = "alicevision";
         version = "2022-10-15";
         src = pkgs.fetchFromGitHub {
           owner = pname;
           repo = pname;
-          rev = version;
+          rev = "672fb43cea53bbf07b262f0e3ee618c62aec2f9b";
           deepClone = true;
           fetchSubmodules = true;
           sha256 = "DDvHpqSIt6fbH1tufP21iVxtJl6CNE1ppZ2KMDn4t8c=";
@@ -146,6 +196,8 @@
           coin-clp
           coin-osi
           assimp
+          alembic_
+          cctag
         ];
         hardeningDisable = [
           "all"
@@ -161,7 +213,6 @@
           "-DOpenCV_DIR:PATH=${pkgs.opencv}/lib/cmake/"
         ];
       };
-      py = pkgs.python3;
       qt3dFull = pkgs.qt5.qtModule {
         pname = "qt3d";
         qtInputs = with pkgs.qt5; [
@@ -174,21 +225,17 @@
         ];
         outputs = [ "out" "dev" "bin" ];
       };
-      pyside2 = py.pkgs.pyside2.overrideAttrs (self: super: {
+      py = pkgs.python3;
+      pyside2_3d = py.pkgs.pyside2.overrideAttrs (self: super: {
         buildInputs = super.buildInputs ++ (with pkgs.qt5; [
           qt3dFull
         ]);
       });
       mesh-py = py.withPackages (p: with p; [
-        pyside2
+        pyside2_3d
         psutil
         markdown
         requests
-      ]);
-      pypip = py.withPackages (p: with p; [
-        pyqt5
-        matplotlib
-        setuptools
       ]);
       meshroom = pkgs.stdenv.mkDerivation rec {
         pname = "meshroom";
@@ -203,10 +250,7 @@
           pkgs.stdenv.cc.cc.lib
         ];
         #export  QML2_IMPORT_PATH=/nix/store/365hahbdvz2r7nwk1fyi73ypd3yqlmfp-qtcharts-5.15.7-bin/lib/qt-5.15.7/qml:/nix/store/61y1jna9wj6n3663g0yamw4ngick2qmf-qt3d-5.15.7-bin/lib/qt-5.15.7/qml:$QML2_IMPORT_PATH
-
-        propagatedBuildInputs = with pkgs.python2; [
-          pkgs.qt5.qt3d.bin
-          pkgs.qt5.qtcharts.bin
+        propagatedBuildInputs = [
           mesh-py
         ];
         buildInputs = with pkgs; [
@@ -223,7 +267,6 @@
           qt5.qttools.dev
         ];
         propagatedBuildInputs = [
-          # pypip
           mesh-py
         ];
         QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}/platforms";
