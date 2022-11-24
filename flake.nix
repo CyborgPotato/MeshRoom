@@ -114,15 +114,22 @@
         ]);
         installPhase = ''
           make install
-          mkdir -p $dev/lib
-          mkdir -p $dev/include
           mkdir $doc
           mkdir $out
-          mv ./lib $dev/lib
-          mv ./include $dev/include
+          mv ./lib $dev/
+          mv ./include $dev/
         '';
       });
       ceres-solver_new = pkgs.ceres-solver.overrideAttrs (self: super: rec {
+        pname = "ceres-solver";
+        version = "2.1.0";
+        src = pkgs.fetchFromGitHub {
+          owner = "ceres-solver";
+          repo = "ceres-solver";
+          rev = "352b320ab1b5438a0838aea09cbbf07fa4ff5d71";
+          sha256 = "MvfBPRbZA3KVHFQW7CkRpP/i3a6ZuNZQybYrdzuPKyw=";
+        };
+        patches = [];
         propagatedBuildInputs = (with pkgs; [
           eigen
           glog
