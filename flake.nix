@@ -208,7 +208,6 @@
           coin-osi
           assimp
           alembic_
-          cctag
           apriltag
           popsift
         ];
