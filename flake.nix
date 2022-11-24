@@ -96,21 +96,6 @@
           coin-osi
         ];
       };
-      # TBB (2020) needs update
-      # tbb = pkgs.tbb.overrideAttrs (self: super: rec {
-      tbb_new = pkgs.stdenv.mkDerivation rec {
-        pname = "tbb";
-        version = "2021.7.0";
-        src = pkgs.fetchFromGitHub {
-          owner = "oneapi-src";
-          repo = "oneTBB";
-          rev = "v${version}";
-          sha256 = "Lawhms0yq5p8BrQXMy6dPe29dpSlHdSntum+6bAkpyo=";
-        };
-        nativeBuildInputs = with pkgs; [
-          cmake
-        ];
-      };
       suitesparse_new = pkgs.suitesparse.overrideAttrs (self: super: rec {
         version = "6.0.1";
         src = pkgs.fetchFromGitHub {
@@ -143,32 +128,8 @@
           glog
           blas
           suitesparse_new
-          tbb_new # Needed to indicate that suitesparse was compiled w/ it
         ]);
       });
-      cctag = pkgs.stdenv.mkDerivation rec {
-        pname = "CCTag";
-        version = "1.0.3";
-        src = pkgs.fetchFromGitHub {
-          owner = "alicevision";
-          repo = pname;
-          rev = "v${version}";
-          sha256 = "foB+e7BCuUucyhN8FsI6BIT3/fsNLTjY6QmjkMWZu6A=";
-        };
-        nativeBuildInputs = with pkgs; [
-          cmake
-        ];
-        buildInputs = with pkgs; [
-          eigen
-          boost
-          opencv
-          tbb_new
-          unfree.cudatoolkit
-        ];
-        cmakeFlags = [
-          "-DTBB_DIR:PATH=${tbb_new}/lib/cmake"
-        ];
-      };
       apriltag =  pkgs.stdenv.mkDerivation rec {
         pname = "apriltag";
         version = "3.1.3";
@@ -263,7 +224,6 @@
           "-DOpenImageIO_INCLUDE_DIR:PATH=${pkgs.openimageio2.dev}/include/"
           "-DALICEVISION_USE_OPENCV=ON"
           "-DOpenCV_DIR:PATH=${pkgs.opencv}/lib/cmake/"
-          "-DTBB_DIR:PATH=${tbb_new}/lib/cmake/TBB/"
         ];
       };
       py = pkgs.python3;
