@@ -57,11 +57,6 @@
         nativeBuildInputs = with pkgs; [
           cmake
         ];
-        preConfigure = ''
-          echo PRECONFigure
-          echo $PWD
-          ls -la
-        '';
       };
       coin-osi = pkgs.stdenv.mkDerivation rec {
         pname = "coin-osi";
@@ -103,7 +98,7 @@
       };
       # TBB (2020) needs update
       # tbb = pkgs.tbb.overrideAttrs (self: super: rec {
-      tbb = pkgs.stdenv.mkDerivation rec {
+      tbb_new = pkgs.stdenv.mkDerivation rec {
         pname = "tbb";
         version = "2021.7.0";
         src = pkgs.fetchFromGitHub {
@@ -116,6 +111,41 @@
           cmake
         ];
       };
+      suitesparse_new = pkgs.suitesparse.overrideAttrs (self: super: rec {
+        version = "6.0.1";
+        src = pkgs.fetchFromGitHub {
+          owner = "DrTimothyAldenDavis";
+          repo = "SuiteSparse";
+          rev = "v${version}";
+          sha256 = "v+ymKQXlbh2XQPbiUxIgwKoB1L7Z5RQ1/HUxbH6O4D4=";
+        };
+        dontUseCmakeConfigure=true;
+        CMAKE_OPTIONS="-DCMAKE_BUILD_TYPE=Release -DGLOBAL_INSTALL=false -DLOCAL_INSTALL=true -DALLOW_64BIT_BLAS=true -DBLAS_LIBRARIES=${pkgs.blas}/lib -DLAPACK_LIBRARIES=${pkgs.lapack}/lib";
+        nativeBuildInputs = super.nativeBuildInputs ++ (with pkgs; [
+          cmake
+        ]);
+        buildInputs = super.buildInputs ++ (with pkgs; [
+          gfortran
+        ]);
+        installPhase = ''
+          make install
+          mkdir -p $dev/lib
+          mkdir -p $dev/include
+          mkdir $doc
+          mkdir $out
+          mv ./lib $dev/lib
+          mv ./include $dev/include
+        '';
+      });
+      ceres-solver_new = pkgs.ceres-solver.overrideAttrs (self: super: rec {
+        propagatedBuildInputs = (with pkgs; [
+          eigen
+          glog
+          blas
+          suitesparse_new
+          tbb_new # Needed to indicate that suitesparse was compiled w/ it
+        ]);
+      });
       cctag = pkgs.stdenv.mkDerivation rec {
         pname = "CCTag";
         version = "1.0.3";
@@ -132,43 +162,26 @@
           eigen
           boost
           opencv
-          tbb
+          tbb_new
           unfree.cudatoolkit
         ];
         cmakeFlags = [
-          "-DTBB_DIR:PATH=${pkgs.tbb}/lib/cmake"
+          "-DTBB_DIR:PATH=${tbb_new}/lib/cmake"
         ];
       };
-      vtkIOMPI = pkgs.vtk.overrideAttrs (self: super: rec {
-        buildInputs = super.buildInputs ++ (with pkgs; [
-          mpi
-        ]);
-        cmakeFlags = super.cmakeFlags ++ [
-          "-DVTK_USE_MPI=ON"
-        ];
-      });
-      # New PCL derivation
-      pcl_new = pkgs.pcl.overrideAttrs (self: (super: rec {
-        version = "1.12.1";
+      apriltag =  pkgs.stdenv.mkDerivation rec {
+        pname = "apriltag";
+        version = "3.1.3";
         src = pkgs.fetchFromGitHub {
-          owner = "PointCloudLibrary";
-          repo = "pcl";
-          rev = "${super.pname}-${version}";
-          sha256 = "ZVJFF3eoNfUafjHOjZe+ePUE0U+1+/BNYyS95xLm5hM=";
+          owner = "alicevision";
+          repo = pname;
+          rev = "v${version}";
+          sha256 = "DY4IB9B73wAzke8t3hRSdFuLcj2lOXpbSeobYGyzMFI=";
         };
-        buildInputs = super.buildInputs ++ [
-          unfree.cudatoolkit
+        nativeBuildInputs = with pkgs; [
+          cmake
         ];
-        propagatedBuildInputs = with pkgs; [
-          boost
-          flann
-          libpng
-          libtiff
-          qhull
-          vtkIOMPI
-        ];
-        cmakeFlags = super.cmakeFlags ++ ["-DWITH_CUDA=true"];
-      }));
+      };
       # Alembic dev CMAKE is malformed, and looks for lib in dev output when it's in alembic.lib
       alembic_ = pkgs.alembic.overrideAttrs (self: super: {
         outputs = [ "out" ];
@@ -218,7 +231,7 @@
           icu
           boost
           llvmPackages.openmp
-          ceres-solver
+          ceres-solver_new
           openexr
           opencv
           flann
@@ -235,8 +248,8 @@
           assimp
           alembic_
           cctag
+          apriltag
           popsift
-          # pcl_new
         ];
         hardeningDisable = [
           "all"
@@ -250,6 +263,7 @@
           "-DOpenImageIO_INCLUDE_DIR:PATH=${pkgs.openimageio2.dev}/include/"
           "-DALICEVISION_USE_OPENCV=ON"
           "-DOpenCV_DIR:PATH=${pkgs.opencv}/lib/cmake/"
+          "-DTBB_DIR:PATH=${tbb_new}/lib/cmake/TBB/"
         ];
       };
       py = pkgs.python3;
