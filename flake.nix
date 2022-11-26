@@ -96,59 +96,26 @@
           coin-osi
         ];
       };
-      suitesparse_new = pkgs.suitesparse.overrideAttrs (self: super: rec {
-        version = "6.0.1";
-        src = pkgs.fetchFromGitHub {
-          owner = "DrTimothyAldenDavis";
-          repo = "SuiteSparse";
-          rev = "v${version}";
-          sha256 = "v+ymKQXlbh2XQPbiUxIgwKoB1L7Z5RQ1/HUxbH6O4D4=";
-        };
-        dontUseCmakeConfigure=true;
-        CMAKE_OPTIONS="-DCMAKE_BUILD_TYPE=Release -DGLOBAL_INSTALL=false -DLOCAL_INSTALL=true -DALLOW_64BIT_BLAS=true -DBLAS_LIBRARIES=${pkgs.blas}/lib -DLAPACK_LIBRARIES=${pkgs.lapack}/lib";
-        nativeBuildInputs = super.nativeBuildInputs ++ (with pkgs; [
-          cmake
-        ]);
-        buildInputs = super.buildInputs ++ (with pkgs; [
-          gfortran
-        ]);
-        installPhase = ''
-          make install
-          mkdir $doc
-          mkdir $out
-          mv ./lib $dev/
-          mv ./include $dev/
-        '';
-      });
-      ceres-solver_new = pkgs.ceres-solver.overrideAttrs (self: super: rec {
-        pname = "ceres-solver";
-        version = "2.1.0";
-        src = pkgs.fetchFromGitHub {
-          owner = "ceres-solver";
-          repo = "ceres-solver";
-          rev = "352b320ab1b5438a0838aea09cbbf07fa4ff5d71";
-          sha256 = "MvfBPRbZA3KVHFQW7CkRpP/i3a6ZuNZQybYrdzuPKyw=";
-        };
-        patches = [];
-        propagatedBuildInputs = (with pkgs; [
-          eigen
-          glog
-          blas
-          suitesparse_new
-        ]);
-      });
       apriltag =  pkgs.stdenv.mkDerivation rec {
         pname = "apriltag";
-        version = "3.1.3";
+        version = "3.2.0";
         src = pkgs.fetchFromGitHub {
-          owner = "alicevision";
+          owner = "AprilRobotics";
           repo = pname;
           rev = "v${version}";
-          sha256 = "DY4IB9B73wAzke8t3hRSdFuLcj2lOXpbSeobYGyzMFI=";
+          sha256 = "pJFTzWX8zLzcDfPCg8v44fwlxEMVeRylcggFk7B5m7g=";
         };
         nativeBuildInputs = with pkgs; [
           cmake
+          ninja
         ];
+        postInstall = ''
+          mv $out/share/*/cmake/* $out/share/*/
+          rmdir $out/share/*/cmake
+          mkdir -p $out/lib/cmake
+          mv $out/share/* $out/lib/cmake
+          rm -rf $out/share
+        '';
       };
       # Alembic dev CMAKE is malformed, and looks for lib in dev output when it's in alembic.lib
       alembic_ = pkgs.alembic.overrideAttrs (self: super: {
@@ -199,7 +166,7 @@
           icu
           boost
           llvmPackages.openmp
-          ceres-solver_new
+          ceres-solver
           openexr
           opencv
           flann
@@ -244,52 +211,133 @@
         markdown
         requests
       ]);
+      voctree = pkgs.fetchurl {
+        url = "https://gitlab.com/alicevision/trainedVocabularyTreeData/raw/master/vlfeat_K80L3.SIFT.tree";
+        sha256 = "SuecIXD7tUoAGV+GbytCE+orS8MD9FG2s2Bwmh0ZTLg=";
+      };
+      qmlAlembic = pkgs.stdenv.mkDerivation rec {
+        pname = "qmlAlembic";
+        version = "2022.09.08";
+        src = pkgs.fetchFromGitHub {
+          owner = "alicevision";
+          repo = "qmlAlembic";
+          rev = "896c52d88a9ef46b0d07eb42d11c631eda18d18c";
+          sha256 = "cEqnZQsm6VwucYk6qD/mqXE7bsZz+KQwrTflvzslV50=";
+        };
+        dontWrapQtApps = true;
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        buildInputs = with pkgs; [
+          qt5.qtdeclarative
+          qt5.qt3d
+          ilmbase
+          alembic_
+        ];
+        postInstall = ''
+          mkdir -p $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          mv $out/qml/* $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          rmdir $out/qml
+        '';
+      };
+      qtOIIO = pkgs.stdenv.mkDerivation rec {
+        pname = "QtOIIO";
+        version = "2022.10.31";
+        src = pkgs.fetchFromGitHub {
+          owner = "alicevision";
+          repo = "QtOIIO";
+          rev = "a41dae9c2688277b600e73376146eb26afc671f5";
+          sha256 = "/422K75v51aKfGV2DSs/+jekbwyJyNStVyjU2CwmncA=";
+        };
+        dontWrapQtApps = true;
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        buildInputs = with pkgs; [
+          qt5.qtdeclarative
+          qt5.qt3d
+          openimageio2
+        ];
+        postInstall = ''
+          mkdir -p $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          mv $out/qml/* $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          mv $out/imageformats $out/lib
+          rmdir $out/qml
+        '';
+      };
+      qtAliceVision = pkgs.stdenv.mkDerivation rec {
+        pname = "QtAliceVision";
+        version = "2022.06.03";
+        src = pkgs.fetchFromGitHub {
+          owner = "alicevision";
+          repo = "QtAliceVision";
+          rev = "104d35444a29380c88d550d6b8065d4f855242f0";
+          sha256 = "q6Vn6afMmCLqEgRplTW5mAFoX8AFIx0V8LAl45yc/Ho=";
+        };
+        dontWrapQtApps = true;
+        nativeBuildInputs = with pkgs; [
+          cmake
+        ];
+        buildInputs = with pkgs; [
+          qt5.qtdeclarative
+          qt5.qtcharts
+          boost
+          coin-utils
+          coin-clp
+          coin-osi
+          popsift
+          alembic_
+          openimageio2
+          ceres-solver
+          alicevision
+        ];
+        postInstall = ''
+          mkdir -p $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          mv $out/qml/* $out/${pkgs.qt5.qtbase.qtQmlPrefix}
+          rmdir $out/qml
+        '';
+      };
       meshroom = pkgs.stdenv.mkDerivation rec {
         pname = "meshroom";
-        version = "8e9128be8d58f2caf55ad9bc9a41e86798dfd5eb";
+        version = "2022.11.15";
         src = pkgs.fetchFromGitHub {
           owner = "alicevision";
           repo = pname;
-          rev = version;
+          rev = "8e9128be8d58f2caf55ad9bc9a41e86798dfd5eb";
           sha256 = "IDoP0JnSI7zz/GSMQZCTQGw5Qg0qr7zMdDqwZJ7OE18=";
         };
-        propagatedNativeBuildInputs = [
-          pkgs.stdenv.cc.cc.lib
+        nativeBuildInputs = with pkgs; [
+          qt5.wrapQtAppsHook
         ];
-        #export  QML2_IMPORT_PATH=/nix/store/365hahbdvz2r7nwk1fyi73ypd3yqlmfp-qtcharts-5.15.7-bin/lib/qt-5.15.7/qml:/nix/store/61y1jna9wj6n3663g0yamw4ngick2qmf-qt3d-5.15.7-bin/lib/qt-5.15.7/qml:$QML2_IMPORT_PATH
-        propagatedBuildInputs = [
-          mesh-py
+        dontConfigure = true;
+        dontBuild = true;
+        installPhase = ''
+          mkdir -p $out/{bin,lib}
+          cp -r $src/meshroom $out/lib/
+        '';
+        dontWrapQtApps = true;
+        postFixup = ''
+          qtWrapperArgs+=("''${gappsWrapperArgs[@]}")
+          makeQtWrapper ${mesh-py}/bin/python3 $out/bin/meshroom \
+                      --prefix PYTHONPATH : $out/lib/ \
+                      --prefix PATH : ${alicevision}/bin/ \
+                      --prefix ALICEVISION_SENSOR_DB : ${alicevision}/share/aliceVision/cameraSensors.db \
+                      --prefix ALICEVISION_VOCTREE : ${voctree} \
+                      --prefix ALICEVISION_ROOT : ${alicevision} \
+                      --add-flags $out/lib/meshroom/ui
+        '';
+        buildInputs = [
           pkgs.qt5.qt3d.bin
           pkgs.qt5.qtcharts.bin
-        ];
-        buildInputs = with pkgs; [
-          alicevision
+          qmlAlembic
+          qtOIIO
+          qtAliceVision
         ];
       };
     in {
-      defaultPackage = alicevision;#meshroom;
+      defaultPackage = meshroom;
+      devShells.april = apriltag;
       devShells.alice = alicevision;
       devShells.mesh = meshroom;
-      devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [
-          bashInteractive
-          qt5.qttools.dev
-        ];
-        propagatedBuildInputs = [
-          mesh-py
-        ];
-        QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}/platforms";
-        shellHook = ''
-          # source venv/bin/activate
-          # export PIP_CACHE_DIR="$PWD/venv/cache"
-          # Source locally
-          export PYTHONPATH=./:$PYTHONPATH
-          cd source
-          # fixes libstdc++ issues and libgl.so issues
-          export LD_LIBRARY_PATH=${pkgs.stdenv.cc.cc.lib}/lib/:/run/opengl-driver/lib/:${pkgs.glib.out}/lib:${pkgs.libkrb5.out}/lib:${pkgs.libglvnd.out}/lib:${pkgs.xorg.libxcb}/lib
-          # fixes xcb issues :
-          # export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix}
-        '';
-      };
     });
 }
